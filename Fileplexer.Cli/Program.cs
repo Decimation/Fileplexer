@@ -36,6 +36,7 @@ public static class Program
 		public override async Task<object> HandleItem(FtpListItem item, FtpCompareResult result)
 		{
 			if (result == FtpCompareResult.Equal) {
+				Console.WriteLine($"{item.FullName}!");
 				return true;
 			}
 

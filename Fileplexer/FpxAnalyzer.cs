@@ -16,33 +16,37 @@ public class FpxAnalyzer
 	public async Task Run(FpxHandler h, string comparand, string dir,
 	                      CancellationToken c = default, FtpListOption opt = default)
 	{
-		var items = Host.Client.GetListingEnumerable(dir, opt, c);
+		var items = await Host.Client.GetListing(dir, opt, c);
+		items = items.Where(x => x.Type != FtpObjectType.Directory).ToArray();
+		var cnt = items.Length;
 
-		IAsyncEnumerator<FtpListItem> enumerator = null;
+		var grp = items.GroupBy(x => Path.GetDirectoryName(x.FullName)/*,
+		                        resultSelector: (_, enumerable) => enumerable*/).OrderBy(x=>x.Count());
 
-		try {
-			enumerator = items.GetAsyncEnumerator(c);
+		foreach (var g in grp)
+		{
+			Console.WriteLine(g.Key);
+			Console.WriteLine();
+			/*await Parallel.ForEachAsync(g, pl, async (item, token) =>
+			{
+				var cm = await Host.Client.CompareFile(comparand, item.FullName,
+													   FtpCompareOption.Auto, token);
+				var res = h.HandleItem(item, cm);
+				Interlocked.Decrement(ref cnt);
+				Console.WriteLine($"\r{cnt}");
+			}).ConfigureAwait(false);*/
 
-			while (await enumerator.MoveNextAsync()) {
+			foreach (FtpListItem item in g) {
+				
+				var cm = await Host.Client.CompareFile(comparand, item.FullName,
+				                                       FtpCompareOption.Size, c);
 
-				var item = enumerator.Current;
+				var res = h.HandleItem(item, cm);
+				Interlocked.Decrement(ref cnt);
+				Console.Write($"\r{cnt} {cm} | {item.FullName}");
 
-				var compRes = await Host.Client.CompareFile(comparand, item.FullName,
-				                                            FtpCompareOption.Auto, c);
-				var res = await h.HandleItem(item, compRes);
-				// Console.WriteLine(res); //todo
-				if (res is bool b && b) {
-					Console.WriteLine($"{res} {item}");
-				}
 			}
-
 		}
-		finally {
-			if (enumerator != null) {
-				await enumerator.DisposeAsync();
-			}
-		}
-
 	}
 
 }
