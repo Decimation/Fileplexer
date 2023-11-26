@@ -5,36 +5,43 @@ using System.Security.Authentication;
 using System.Text;
 using FluentFTP;
 
-namespace Fileplexer.Cli
+namespace Fileplexer.Cli;
+
+public static class Program
 {
-	internal class Program
+
+	static async Task Main(string[] args)
+	{
+		var s = "192.168.1.235";
+
+		var f = new FpxHost(s, "Admin", "deci", 2121);
+
+		var profile = await f.Client.AutoConnect();
+		f.Client.Encoding = Encoding.UTF8;
+		// await f.Client.Connect(profile);
+		Console.WriteLine(profile);
+		Console.WriteLine(await f.Client.GetWorkingDirectory());
+		var a = new FpxAnalyzer(f);
+		var h = new Hndl();
+		
+		await a.Run(h, @"C:\Users\Deci\Downloads\Kallen_FINAL_1-3.png", "DCIM/",
+		            opt: FtpListOption.AllFiles | FtpListOption.Recursive);
+
+		await f.Client.Disconnect();
+	}
+
+	public class Hndl : FpxHandler
 	{
 
-		static async Task Main(string[] args)
+		public override async Task<object> HandleItem(FtpListItem item, FtpCompareResult result)
 		{
-			Console.WriteLine("Hello, World!");
-			var logger = new l();
-
-			var s = "192.168.1.235";
-
-			var f = new AsyncFtpClient(s, "Admin", "deci", 2121, new FtpConfig()
-				                           { }, logger);
-
-			var profile = await f.AutoConnect();
-			await f.Connect(profile);
-			Console.WriteLine(await f.GetWorkingDirectory());
-			await f.Disconnect();
-		}
-
-		public class l : IFtpLogger
-		{
-
-			public void Log(FtpLogEntry entry)
-			{
-				Debug.WriteLine($"{entry.Message}");
+			if (result == FtpCompareResult.Equal) {
+				return true;
 			}
 
+			return false;
 		}
 
 	}
+
 }
